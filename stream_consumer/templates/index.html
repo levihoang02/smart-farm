@@ -1,0 +1,23 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kafka WebSocket Stream</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function() {
+            var socket = io.connect('http://localhost:5000');
+            socket.on('kafka_message', function(msg) {
+                var messageList = document.getElementById('messages');
+                var newMessage = document.createElement('li');
+                newMessage.textContent = msg.data;
+                messageList.appendChild(newMessage);
+            });
+        });
+    </script>
+</head>
+<body>
+    <h1>Kafka WebSocket Stream</h1>
+    <ul id="messages"></ul>
+</body>
+</html>

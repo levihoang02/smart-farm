@@ -1,0 +1,10 @@
+kafka-python
+kafka-python-ng
+python-dotenv
+flask 
+flask-socketio 
+eventlet
+websocket
+python-socketio
+websocket-client>=1.6.0
+requests
