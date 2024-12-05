@@ -11,11 +11,19 @@ config = Config()
 producer = Producer({'bootstrap.servers': config.KAFKA_BROKERS_EXTERNAL})
 
 # Function to generate random sensor data
-def generate_sensor_data(sensor_id):
+def generate_temperature_data(sensor_id):
     return {
         "sensor_id": sensor_id,
-        "type": random.choice(["temperature", "humidity"]),
-        "value": round(random.uniform(10.0, 100.0), 2),
+        "type": "temperature",
+        "value": round(random.uniform(31, 32), 2),
+        "timestamp": datetime.now().isoformat()
+    }
+    
+def generate_temperature_data(sensor_id):
+    return {
+        "sensor_id": sensor_id,
+        "type": "temperature",
+        "value": round(random.uniform(19, 21), 2),
         "timestamp": datetime.now().isoformat()
     }
 
@@ -30,7 +38,7 @@ def send_data(producer, topic, data):
 
 # Simulate data generation
 def simulate_sensor_data():
-    sensor_ids = [f"sensor_{i}" for i in range(1, 101)]  # 100 sensors
+    sensor_ids = [f"sensor_{i}" for i in range(1, 2)]  # 100 sensors
     while True:
         sensor_id = random.choice(sensor_ids)  # Pick a random sensor
         sensor_data = generate_sensor_data(sensor_id)

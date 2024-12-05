@@ -11,7 +11,7 @@ from scipy.signal import detrend
 from scipy.ndimage import gaussian_filter
 
 class TimeSeriesCompressor:
-    def __init__(self, csv_file_path, sparseAlgo, segment_length=10, n_atoms=2000, n_nonzero_coefs=5, db_path='iot_data.db', dict_path='dictionary.pkl'):
+    def __init__(self, csv_file_path, sparseAlgo, segment_length=5000, n_atoms=50, n_nonzero_coefs=5, db_path='iot_data.db', dict_path='dictionary.pkl'):
         self.csv_file_path = csv_file_path
         self.sparseAlgo = sparseAlgo
         self.segment_length = segment_length

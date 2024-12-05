@@ -70,6 +70,22 @@ services:
     networks:
       - app-network
 
+  pyserver:
+    image: pyserver:latest
+    build:
+       context: ./iotserver
+      #  dockerfile: Dockerfile
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - kafka-3
+    volumes:
+      - ./iotserver/app.py:/app/app.py
+    ports:
+      - "5001:5001"
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
