@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 config = Config()
 
-compressor = TimeSeriesCompressor('data.csv', 'omp')
+compressor = TimeSeriesCompressor('data.csv')
 
 class StoreConsumer:
     def __init__(self, interval = timedelta(hours=12)):
@@ -45,6 +45,4 @@ class StoreConsumer:
         print("Stream consumer stopped")
             
 if __name__ == "__main__":
-    mse, ratio = compressor.run_compression()
-    print("MSE: ", mse)
-    print("Ratio: ", ratio)
+    compressor.run_compression()

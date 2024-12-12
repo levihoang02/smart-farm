@@ -9,13 +9,9 @@ import sqlite3
 from sklearn.preprocessing import StandardScaler
 from scipy.signal import detrend
 from scipy.ndimage import gaussian_filter
-from datetime import datetime
 
-from utils.config import Config
-import mysql.connector
-config = Config()
 class TimeSeriesCompressor:
-    def __init__(self, csv_file_path, segment_length=8000, n_atoms=5, n_nonzero_coefs=5, db_path='iot_data.db', dict_path='dictionary.pkl'):
+    def __init__(self, csv_file_path, segment_length=5000, n_atoms=50, n_nonzero_coefs=5, db_path='iot_data.db', dict_path='dictionary.pkl'):
         self.csv_file_path = csv_file_path
         self.segment_length = segment_length
         self.n_atoms = n_atoms
@@ -26,7 +22,6 @@ class TimeSeriesCompressor:
         self.dictionary = None
         self.sparse_codes = None
         self.compressed_data = None
-        self.scaler = None
 
     def load_data(self):
         data = pd.read_csv(self.csv_file_path)      
@@ -39,8 +34,8 @@ class TimeSeriesCompressor:
         self.time_series_data = np.vstack((temperature_data, humidity_data))
 
     def preprocess_data(self):        
-        self.scaler = StandardScaler()
-        self.time_series_data = self.scaler.fit_transform(self.time_series_data.T).T
+        scaler = StandardScaler()
+        self.time_series_data = scaler.fit_transform(self.time_series_data.T).T
         self.time_series_data = np.apply_along_axis(detrend, axis=1, arr=self.time_series_data)
         self.time_series_data = np.apply_along_axis(lambda x: gaussian_filter(x, sigma=2), axis=1, arr=self.time_series_data)
 
@@ -99,50 +94,6 @@ class TimeSeriesCompressor:
         self.compressed_data = np.array(compressed_data)
         return self.compressed_data
     
-    def compress2(self, threshold=0.5):
-        """
-        Compress data using both dictionary atoms and correlation.
-        Returns a structured representation with atom IDs, coefficients, and correlation info.
-        """            
-        corr_matrix = self.compute_correlation_matrix()
-        compressed_representation = {
-            'timestamp': [],
-            'atom_ids': [],
-            'atom_coefficients': [],
-            'correlated_series': [],
-            'scale_factors': []
-        }
-
-        for i in range(self.time_series_data.shape[0]):
-            max_corr = np.max(corr_matrix[i][i+1:]) if i + 1 < corr_matrix.shape[0] else 0
-
-        if max_corr < threshold:
-            # Dictionary sparse coding
-            # Get non-zero atom indices and their coefficients
-            non_zero_indices = np.nonzero(self.sparse_codes[i])[0]
-            coefficients = self.sparse_codes[i][non_zero_indices]
-            
-            compressed_representation['timestamp'].append(i)
-            compressed_representation['atom_ids'].append(non_zero_indices.tolist())
-            compressed_representation['atom_coefficients'].append(coefficients.tolist())
-            compressed_representation['correlated_series'].append(None)
-            compressed_representation['scale_factors'].append(None)
-        else:
-            # Correlation coding
-            correlated_series_idx = np.argmax(corr_matrix[i][i+1:]) + (i+1)
-            scale_factor = (
-                np.dot(self.time_series_data[i], self.time_series_data[correlated_series_idx])
-                / np.dot(self.time_series_data[correlated_series_idx], self.time_series_data[correlated_series_idx])
-            )
-            
-            compressed_representation['timestamp'].append(i)
-            compressed_representation['atom_ids'].append(None)
-            compressed_representation['atom_coefficients'].append(None)
-            compressed_representation['correlated_series'].append(correlated_series_idx)
-            compressed_representation['scale_factors'].append(scale_factor)
-
-        return compressed_representation
-    
 
     def compute_correlation_matrix(self):
         return np.corrcoef(self.time_series_data)
@@ -174,43 +125,25 @@ class TimeSeriesCompressor:
         return mse, compression_ratio
 
     def store_results(self, mse, compression_ratio):
-        conn = mysql.connector.connect(
-            host=config.MYSQL_HOST,
-            user=config.MYSQL_USER,
-            password=config.MYSQL_PASSWORD,
-            database=config.MYSQL_DATABASE,
-            port =  3310
-        )
-        cursor = conn.cursor()
-        cursor.execute('''CREATE TABLE IF NOT EXISTS compressed_data (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            compressed MEDIUMBLOB,
-            scaler MEDIUMBLOB,
-            sparse_codes MEDIUMBLOB,
-            num_series INT,
-            num_points INT,
-            sparse_codes_shape VARCHAR(255),
-            compressed_shape VARCHAR(255),
-            mse REAL,
-            compression_ratio REAL,
-            n_atoms INT,
-            n_nonzero_coefs INT,
-            segment_length INT,
-            date_time DATETIME
-        )''')
-        
-        compressed_data_blob = self.compressed_data.tobytes()
-        scaler_blob = pickle.dumps(self.scaler)
-        sparse_codes_blob = self.sparse_codes.tobytes()
-        compressed_shape_str = str(self.compressed_data.shape)
-        sparse_codes_shape_str = str(self.sparse_codes.shape)
-        
-        cursor.execute('''INSERT INTO compressed_data (compressed, scaler, sparse_codes, num_series, num_points, sparse_codes_shape, compressed_shape, mse, compression_ratio, n_atoms, n_nonzero_coefs, segment_length, date_time)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)''', (compressed_data_blob, scaler_blob, sparse_codes_blob, self.time_series_data.shape[0], self.time_series_data.shape[1], sparse_codes_shape_str, compressed_shape_str, mse, compression_ratio, self.n_atoms, self.n_nonzero_coefs, self.segment_length, datetime.now()))
-        
+        conn = sqlite3.connect(self.db_path)
+        c = conn.cursor()
+
+        c.execute('''CREATE TABLE IF NOT EXISTS compressed_data
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      original BLOB,
+                      compressed BLOB,
+                      mse REAL,
+                      compression_ratio REAL)''')
+
+        original_data_blob = self.time_series_data.tobytes()
+        compressed_data_blob = self.sparse_codes.tobytes()
+
+        c.execute('''INSERT INTO compressed_data (original, compressed, mse, compression_ratio)
+                     VALUES (?, ?, ?, ?)''',
+                  (original_data_blob, compressed_data_blob, mse, compression_ratio))
+
         conn.commit()
         conn.close()
-        
 
     def run_compression(self):
         # print("Loading data...")
@@ -233,25 +166,25 @@ class TimeSeriesCompressor:
         # print(f"Sparse codes shape: {self.sparse_codes.shape}")  # Expected: (num_segments, n_atoms)
 
         # print("Compressing data...")
-        print(self.compress2())
+        self.compress()
         # print("Compressed data shape:", self.compressed_data.shape)
 
         
-        # # print("Decompressing data...")
-        # decompressed_segments = self.decompress()
-        # # print("Decompression complete.")
+        # print("Decompressing data...")
+        decompressed_segments = self.decompress()
+        # print("Decompression complete.")
 
-        # # print("Reassembling segments...")
-        # num_series, num_points = self.time_series_data.shape
-        # decompressed_data = self.reassemble_segments(decompressed_segments, num_series, num_points)
+        # print("Reassembling segments...")
+        num_series, num_points = self.time_series_data.shape
+        decompressed_data = self.reassemble_segments(decompressed_segments, num_series, num_points)
         
-        # # print("Evaluating compression...")
-        # mse, compression_ratio = self.evaluate_compression(self.time_series_data, decompressed_segments)
+        # print("Evaluating compression...")
+        mse, compression_ratio = self.evaluate_compression(self.time_series_data, decompressed_segments)
         
-        # print(f"Compression Ratio: {compression_ratio}")
-        # print(f"Mean Squared Error: {mse}")
+        print(f"Compression Ratio: {compression_ratio}")
+        print(f"Mean Squared Error: {mse}")
         
-        # # print("Storing results...")
-        # self.store_results(mse, compression_ratio)
+        # print("Storing results...")
+        self.store_results(mse, compression_ratio)
         
-        # return mse, compression_ratio
+        return mse, compression_ratio

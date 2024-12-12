@@ -3,6 +3,32 @@ from flask_socketio import SocketIO, emit
 from gevent import monkey
 monkey.patch_all()
 
+from services.decompression import TimeSeriesDecompressor
+from pyspark.sql import SparkSession
+from datetime import datetime
+
+spark = SparkSession.builder \
+    .appName("TimeSeriesAnalysis") \
+    .getOrCreate()
+
+def calculate_average_with_spark(data):
+    # Convert data to Spark DataFrame
+    df = spark.createDataFrame(data, ["temperature", "humidity"])
+    
+    # Calculate average
+    avg_df = df.groupBy().avg("temperature", "humidity").collect()
+    
+    # Extract results
+    avg_temp = avg_df[0]["avg(temperature)"]
+    avg_humid = avg_df[0]["avg(humidity)"]
+
+    return {"average_temperature": avg_temp, "average_humidity": avg_humid}
+
+def decompress_data(data):
+    decompressor = TimeSeriesDecompressor()
+    decompressed_data = decompressor.decompress(data)
+    return decompressed_data
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, 
