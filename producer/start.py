@@ -11,26 +11,16 @@ config = Config()
 producer = Producer({'bootstrap.servers': config.KAFKA_BROKERS_EXTERNAL})
 
 # Function to generate random sensor data
-def generate_temperature_data(sensor_id):
-    return {
-        "sensor_id": sensor_id,
-        "type": "temperature",
-        "value": round(random.uniform(31, 32), 2),
-        "timestamp": datetime.now().isoformat()
-    }
-    
-def generate_temperature_data(sensor_id):
-    return {
-        "sensor_id": sensor_id,
-        "type": "temperature",
-        "value": round(random.uniform(19, 21), 2),
-        "timestamp": datetime.now().isoformat()
-    }
+def generate_sensor_data():
+    temperature = random.uniform(19, 21)
+    humidity = random.uniform(31, 32)
+    data = f'Temperature: {temperature}, Humidity: {humidity}, timestamp: {datetime.now()}'
+    return data
 
 # Function to send data to Kafka
 def send_data(producer, topic, data):
     try:
-        producer.produce(topic, key=str(data["sensor_id"]), value=json.dumps(data))
+        producer.produce(topic, value=data.encode('utf-8'))
         producer.flush()  # Ensure the message is sent
         print(f"Sent: {data}")
     except Exception as e:
@@ -38,12 +28,10 @@ def send_data(producer, topic, data):
 
 # Simulate data generation
 def simulate_sensor_data():
-    sensor_ids = [f"sensor_{i}" for i in range(1, 2)]  # 100 sensors
     while True:
-        sensor_id = random.choice(sensor_ids)  # Pick a random sensor
-        sensor_data = generate_sensor_data(sensor_id)
-        send_data(producer, config.KAFKA_TOPIC, sensor_data)
-        time.sleep(5)  # Delay to simulate real-time data generation
+        data = generate_sensor_data()
+        send_data(producer, config.KAFKA_TOPIC, data)
+        time.sleep(5)
 
 # Main entry point
 if __name__ == "__main__":

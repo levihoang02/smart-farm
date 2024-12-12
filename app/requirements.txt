@@ -10,3 +10,4 @@ pyspark
 mysql-connector-python
 numpy
 scikit-learn
+PyJWT
