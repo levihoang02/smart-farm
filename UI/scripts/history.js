@@ -1,30 +1,6 @@
 // Initialize Charts
 const temperatureCtx = document.getElementById('temperatureChart').getContext('2d');
 const humidityCtx = document.getElementById('humidityChart').getContext('2d');
-const TEMP_ALERT_THRESHOLD = 20;
-const HUMIDITY_ALERT_THRESHOLD = 30;
-
-function checkThresholds(temperature, humidity) {
-    let alertMessage = '';
-    
-    if (temperature > TEMP_ALERT_THRESHOLD) {
-        alertMessage += `Temperature (${temperature}°C) is above threshold of ${TEMP_ALERT_THRESHOLD}°C!\n`;
-    }
-    
-    if (humidity > HUMIDITY_ALERT_THRESHOLD) {
-        alertMessage += `Humidity (${humidity}) is above threshold of ${HUMIDITY_ALERT_THRESHOLD}!`;
-    }
-    
-    if (alertMessage) {
-        const existingModal = bootstrap.Modal.getInstance(document.getElementById('alertModal'));
-        if (existingModal) {
-            existingModal.hide();
-        }
-        document.getElementById('alertModalBody').textContent = alertMessage;
-        const alertModal = new bootstrap.Modal(document.getElementById('alertModal'));
-        alertModal.show();
-    }
-}
 
 // Temperature Line Chart
 const temperatureChart = new Chart(temperatureCtx, {
@@ -79,7 +55,22 @@ const maxDataPoints = 20;
 const temperatureData = [];
 const humidityData = [];
 
-const socket = io("http://localhost:5000");
+document.addEventListener('DOMContentLoaded', function() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
+});
+
+const token = localStorage.getItem('token');
+const socket = io("http://localhost:5000", {
+    withCredentials: true,
+    extraHeaders: {
+        Authorization: `Bearer ${token}`
+    }
+});
+
 const statusElement = document.getElementById('connection-status');
 
 socket.on("connect", () => {
@@ -87,6 +78,15 @@ socket.on("connect", () => {
     statusElement.className = 'alert alert-success';
     statusElement.textContent = 'Connected to server';
 });
+
+function checkThreshold(elementId, value, threshold) {
+    const card = document.getElementById(`${elementId}-card`);
+    if (value >= threshold) {
+        card.classList.add('alert-threshold');
+    } else {
+        card.classList.remove('alert-threshold');
+    }
+}
 
 socket.on("sensor_data", (res) => {
     try {
@@ -101,6 +101,8 @@ socket.on("sensor_data", (res) => {
             const humidity = res.data["Humidity"];
             tempElement.textContent = temp.toFixed(1);
             humidityElement.textContent = humidity.toFixed(1);
+            checkThreshold('temperature', temp, TEMP_ALERT_THRESHOLD);
+            checkThreshold('humidity', humidity, HUMIDITY_ALERT_THRESHOLD);
 
             // Update temperature chart
             const timestamp = new Date().toLocaleTimeString();
@@ -130,12 +132,62 @@ socket.on("sensor_data", (res) => {
     }
 });
 
+function checkThresholds(temperature, humidity) {
+    if (temperature > TEMP_ALERT_THRESHOLD) {
+        console.log("Temperature is above threshold of ${TEMP_ALERT_THRESHOLD}°C!");
+        let alertMessage = `Temperature (${temperature}°C) is above threshold of ${TEMP_ALERT_THRESHOLD}°C!\n`;
+        showToast(alertMessage);
+    }
+    
+    if (humidity > HUMIDITY_ALERT_THRESHOLD) {
+        let alertMessage = `Humidity (${humidity}) is above threshold of ${HUMIDITY_ALERT_THRESHOLD}!`;
+        showToast(alertMessage);
+    }
+};
+
+const showToast = (message) => {
+    let toastContainer = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.role = 'alert';
+        toast.ariaLive = 'assertive';
+        toast.ariaAtomic = 'true';
+    toast.innerHTML = `
+        <div class="toast-header">
+            <strong class="me-auto">Sensor Alert</strong>
+            <small class="text-muted">${new Date().toLocaleTimeString()}</small>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                                </div>
+                                <div class="toast-body">
+            ${message}
+        </div>`;
+    toastContainer.insertBefore(toast, toastContainer.firstChild);
+    const toastBootstrap = new bootstrap.Toast(toast);
+    toastBootstrap.show();
+
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+};
+
 socket.on("disconnect", () => {
     console.log("Disconnected from WebSocket server");
     statusElement.className = 'alert alert-danger';
     statusElement.textContent = 'Disconnected from server';
 });
 
-socket.on("test", (data) => {
-  console.log("Test message received:", data);
-});
+async function logout() {
+    try {
+        const response = await fetch('http://localhost:5000/logout', {
+            method: 'GET',
+            credentials: 'include' 
+        });
+        
+        if (response.ok) {
+            localStorage.removeItem('token'); // Remove token from localStorage
+            window.location.href = 'login.html';
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+}

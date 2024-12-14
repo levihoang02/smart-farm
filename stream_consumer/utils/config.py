@@ -9,4 +9,6 @@ class Config:
     KAFKA_TOPIC = os.getenv("KAFKA-TOPIC")
     KAFKA_GROUP_ID = os.getenv("KAFKA_GROUP_ID")
     SOCKET_URL = os.getenv('SOCKET_URL')
+    SECRET_KEY = os.getenv('SECRET_KEY')
+    TOKEN = os.getenv('TOKEN')
     

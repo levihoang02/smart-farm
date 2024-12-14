@@ -10,6 +10,16 @@
     <!-- Add Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .alert-threshold {
+            animation: pulse 1s infinite;
+            background-color: #ffebee !important;
+            color: #d32f2f !important;
+        }
         .sensor-card {
             transition: all 0.3s ease;
         }
@@ -30,7 +40,30 @@
             height: 300px;
             margin-bottom: 2rem;
         }
+        .toast-container {
+            position: fixed;
+            top: 50px;
+            right: 20px;
+            width: 300px;
+            height: 524px;
+            overflow-y: hidden;
+            background: transparent;
+        }
     </style>
+    <script>
+        
+function getCookies() {
+    return document.cookie
+        .split(';')
+        .reduce((cookies, cookie) => {
+            const [name, value] = cookie.split('=').map(c => c.trim());
+            cookies[name] = value;
+            return cookies;
+            }, {});
+        }
+        const cookies = getCookies();
+        console.log(cookies);
+    </script>
 </head>
 <body class="bg-light">
     <!-- Navigation -->
@@ -45,10 +78,15 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link active" href="#">Dashboard</a>
+                        <a class="nav-link" href="dashboard.html">Dashboard</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Settings</a>
+                        <a class="nav-link active" href="history.html">History</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                        <a class="nav-link" onclick="logout()">Logout</a>
                     </li>
                 </ul>
             </div>
@@ -79,56 +117,16 @@
                 </div>
             </div>
         </div>
-        <div class="row g-4" id="sensor-grid">
-            <!-- Temperature Card -->
-            <div class="col-md-4">
-                <div class="card sensor-card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Temperature</h5>
-                        <div class="sensor-value text-primary" id="temperature">--</div>
-                        <p class="card-text">°C</p>
-                    </div>
-                </div>
-            </div>
-            <!-- Humidity Card -->
-            <div class="col-md-4">
-                <div class="card sensor-card h-100">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">Humidity</h5>
-                        <div class="sensor-value text-primary" id="humidity">--</div>
-                        <p class="card-text">QV2M</p>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- Connection Status -->
-        <div class="alert alert-info mt-4" role="alert" id="connection-status">
-            Connecting to server...
-        </div>
     </div>
+    <!-- Connection Status -->
     <div class="alert alert-info mt-4" role="alert" id="connection-status">
-        <div class="modal fade" id="alertModal" tabindex="-1" aria-labelledby="alertModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="alertModalLabel">Sensor Alert</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body" id="alertModalBody">
-                        <!-- Alert message -->
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+        Connecting to server...
     </div>
+    </div>
+    <div class="toast-container" id="toast-container"></div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="index.js"></script>
+    <script src="../scripts/index.js"></script>
 </body>
 </html>

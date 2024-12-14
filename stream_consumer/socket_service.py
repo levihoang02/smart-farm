@@ -1,11 +1,11 @@
 import socketio
 
 class SocketService:
-    def __init__(self, server_url):
+    def __init__(self, server_url, headers):
         # Initialize a Socket.IO client
         self.sio = socketio.Client(logger=True, engineio_logger=True)
         # Connect to the Flask server
-        self.sio.connect(server_url)
+        self.sio.connect(server_url, headers=headers)
         print("Connected to the server.")
 
     def emit_data(self, event_name, data):

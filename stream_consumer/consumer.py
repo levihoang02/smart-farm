@@ -5,7 +5,7 @@ from socket_service import SocketService
 from utils.converting import convert_to_json
 config = Config()
 
-socket_service = SocketService(Config.SOCKET_URL)
+socket_service = SocketService(Config.SOCKET_URL, headers={'Authorization': f'Bearer {Config.TOKEN}'})
 
 class StreamConsumer:
     def __init__(self):
