@@ -9,6 +9,7 @@ import dotenv
 import os
 from functools import wraps
 from decompression import TimeSeriesCompressor
+from threshold import getAllThreshold, updateThresholdBySensor
 dotenv.load_dotenv()
 
 SECRET_KEY = os.getenv('SECRET_KEY')
@@ -16,10 +17,12 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = request.cookies.get('token')
-        if not token:
+        auth_header = request.headers.get('Authorization')
+        if not auth_header or not auth_header.startswith('Bearer '):
             return jsonify({"message": "Token is missing"}), 401
+        
         try:
+            token = auth_header.split(' ')[1]
             data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
             return f(*args, **kwargs)
         except:
@@ -57,7 +60,44 @@ socketio = SocketIO(app,
 def index():
     return "Flask server is running."
 
+@app.route('/threshold', methods=['GET'])
+@token_required
+def get_threshold():
+    thresholds = getAllThreshold()
+    if thresholds is None:
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to fetch thresholds'
+        }), 500
+    return jsonify({
+        'status': 'success',
+        'thresholds': thresholds
+    })
+
+@app.route('/threshold/update', methods=['POST'])
+@token_required
+def update_threshold():
+    data = request.json
+    if not data or 'sensor' not in data or 'value' not in data:
+        return jsonify({
+            'status': 'error',
+            'message': 'Missing required fields'
+        }), 400
+    
+    success = updateThresholdBySensor(data['sensor'], data['value'])
+    if not success:
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to update threshold'
+        }), 500
+    
+    return jsonify({
+        'status': 'success',
+        'message': 'Threshold updated successfully'
+    })
+
 @app.route('/data', methods=['POST'])
+@token_required
 def get_data():
     data = request.json
     start = data.get('date')
@@ -89,6 +129,7 @@ def login():
     return jsonify({'status': 'error', 'message': 'Invalid credentials'}), 401
 
 @app.route('/logout')
+@token_required
 def logout():
     response = jsonify({'status': 'success', 'message': 'Logged out successfully'})
     response.delete_cookie('token')

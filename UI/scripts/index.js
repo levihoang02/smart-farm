@@ -1,9 +1,8 @@
 // Initialize Charts
 const temperatureCtx = document.getElementById('temperatureChart').getContext('2d');
 const humidityCtx = document.getElementById('humidityChart').getContext('2d');
-const TEMP_ALERT_THRESHOLD = 20;
-const HUMIDITY_ALERT_THRESHOLD = 30;
 let audio = null;
+
 
 // Temperature Line Chart
 const temperatureChart = new Chart(temperatureCtx, {
@@ -104,7 +103,7 @@ function checkThreshold(elementId, value, threshold) {
         playAlertSound();
     } else {
         card.classList.remove('alert-threshold');
-        stopAlertSound();
+        // stopAlertSound();
     }
 }
 
@@ -112,6 +111,8 @@ socket.on("sensor_data", (res) => {
     try {
         console.log("Received Kafka message:", res);
         checkThresholds(res.data["Temperature"], res.data["Humidity"]);
+        let TEMP_ALERT_THRESHOLD = localStorage.getItem('temperature');
+        let HUMIDITY_ALERT_THRESHOLD = localStorage.getItem('humidity')
         
         // Update temperature value
         const tempElement = document.getElementById('temperature');
@@ -153,6 +154,8 @@ socket.on("sensor_data", (res) => {
 });
 
 function checkThresholds(temperature, humidity) {
+    let TEMP_ALERT_THRESHOLD = localStorage.getItem('temperature');
+    let HUMIDITY_ALERT_THRESHOLD = localStorage.getItem('humidity')
     if (temperature > TEMP_ALERT_THRESHOLD) {
         console.log("Temperature is above threshold of ${TEMP_ALERT_THRESHOLD}°C!");
         let alertMessage = `Temperature (${temperature}°C) is above threshold of ${TEMP_ALERT_THRESHOLD}°C!\n`;
@@ -192,20 +195,20 @@ socket.on("disconnect", () => {
     statusElement.textContent = 'Disconnected from server';
 });
 
-async function logout() {
-    try {
-        const response = await fetch('http://localhost:5000/logout', {
-            method: 'GET',
-            credentials: 'include' 
-        });
-        
-        if (response.ok) {
-            localStorage.removeItem('token'); // Remove token from localStorage
+function logout() {
+    const token = localStorage.getItem('token');
+    fetch('http://localhost:5000/logout', {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            localStorage.removeItem('token'); // Remove token on logout
             window.location.href = 'login.html';
         }
-    } catch (error) {
-        console.error('Logout error:', error);
-    }
+    });
 }
 
 

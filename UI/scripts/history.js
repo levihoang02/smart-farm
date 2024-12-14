@@ -1,15 +1,5 @@
 
-const TEMP_ALERT_THRESHOLD = 20;
-const HUMIDITY_ALERT_THRESHOLD = 30;
 let audio = null;
-
-document.addEventListener('DOMContentLoaded', function() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = 'login.html';
-        return;
-    }
-});
 
 const playAlertSound = () => {
     if (audio) {
@@ -26,6 +16,14 @@ const stopAlertSound = () => {
         audio.currentTime = 0; // Reset to the start
     }
 };
+
+document.addEventListener('DOMContentLoaded', function() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'login.html';
+        return;
+    }
+});
 
 const token = localStorage.getItem('token');
 const socket = io("http://localhost:5000", {
@@ -49,7 +47,7 @@ function checkThreshold(elementId, value, threshold) {
         playAlertSound();
     } else {
         card.classList.remove('alert-threshold');
-        stopAlertSound();
+        // stopAlertSound();
     }
 }
 
@@ -57,7 +55,8 @@ socket.on("sensor_data", (res) => {
     try {
         console.log("Received Kafka message:", res);
         checkThresholds(res.data["Temperature"], res.data["Humidity"]);
-        
+        let TEMP_ALERT_THRESHOLD = localStorage.getItem('temperature');
+        let HUMIDITY_ALERT_THRESHOLD = localStorage.getItem('humidity')
         // Update temperature value
         const tempElement = document.getElementById('temperature');
         const humidityElement = document.getElementById('humidity');
@@ -72,6 +71,12 @@ socket.on("sensor_data", (res) => {
         }});
 
 function checkThresholds(temperature, humidity) {
+    console.log("Checking...")
+    let TEMP_ALERT_THRESHOLD = localStorage.getItem('temperature');
+    let HUMIDITY_ALERT_THRESHOLD = localStorage.getItem('humidity');
+    if(temperature > TEMP_ALERT_THRESHOLD || humidity > HUMIDITY_ALERT_THRESHOLD) {
+        playAlertSound();
+    }
     if (temperature > TEMP_ALERT_THRESHOLD) {
         console.log("Temperature is above threshold of ${TEMP_ALERT_THRESHOLD}°C!");
         let alertMessage = `Temperature (${temperature}°C) is above threshold of ${TEMP_ALERT_THRESHOLD}°C!\n`;
@@ -171,10 +176,12 @@ function downloadCSV(date, temp, humid) {
 
 async function download(date) {
     try {
+        const token = localStorage.getItem('token');
         const response = await fetch('http://localhost:5000/data', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
             },
             credentials: 'include', 
             body: JSON.stringify({ date })
