@@ -38,11 +38,12 @@ class TimeSeriesCompressor:
 
         self.time_series_data = np.vstack((temperature_data, humidity_data))
 
-    def preprocess_data(self):        
-        self.scaler = StandardScaler()
-        self.time_series_data = self.scaler.fit_transform(self.time_series_data.T).T
-        self.time_series_data = np.apply_along_axis(detrend, axis=1, arr=self.time_series_data)
-        self.time_series_data = np.apply_along_axis(lambda x: gaussian_filter(x, sigma=2), axis=1, arr=self.time_series_data)
+    def preprocess_data(self):
+        scaler = StandardScaler()
+        self.scaler = scaler
+        detrended_data = np.apply_along_axis(detrend, axis=1, arr=self.time_series_data)
+        self.trends = self.time_series_data - detrended_data
+        self.time_series_data = scaler.fit_transform(detrended_data.T).T gaussian_filter(x, sigma=2), axis=1, arr=self.time_series_data)
 
     def segment_data(self, overlap=5):
         segments = []
