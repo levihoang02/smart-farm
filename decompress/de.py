@@ -95,11 +95,18 @@ class TimeSeriesCompressor:
     def compute_correlation_matrix(self):
         return np.corrcoef(self.time_series_data)
 
-    def decompress(self):
-        decompressed_segments = []
-        for sparse_code in self.sparse_codes:
-            reconstructed_segment = np.dot(self.dictionary.T, sparse_code)
-            decompressed_segments.append(reconstructed_segment)
+    def decompress(self, corr_matrix, threshold=0.8): 
+        decompressed_segments = [] 
+        for i, sparse_code in enumerate(self.sparse_codes): 
+            correlated_idx = np.argmax(corr_matrix[i, i + 1:]) + (i + 1) if i + 1 < corr_matrix.shape[0] else None 
+            max_corr = corr_matrix[i, correlated_idx] if correlated_idx else 0 
+            if max_corr >= threshold: 
+                scale_factor = np.dot(self.time_series_data[i], self.time_series_data[correlated_idx]) / \ 
+                np.dot(self.time_series_data[correlated_idx], self.time_series_data[correlated_idx]) 
+                reconstructed_segment = scale_factor * self.time_series_data[correlated_idx] 
+            else: 
+                reconstructed_segment = np.dot(self.dictionary.T, sparse_code) 
+                decompressed_segments.append(reconstructed_segment) 
         return np.array(decompressed_segments)
 
     def reassemble_segments(self, segments, num_series, num_points):
@@ -132,8 +139,8 @@ class TimeSeriesCompressor:
         # print("Learning dictionary...")
         self.load_dictionary()
         # print(f"Dictionary shape: {self.dictionary.shape}")  # Expected: (n_atoms, segment_length)
-    
-        decompressed_segments = self.decompress()
+        corr_matrix = self.compute_correlation_matrix()
+        decompressed_segments = self.decompress(corr_matrix)
 
         decompressed_data = self.reassemble_segments(decompressed_segments, self.num_series, self.num_points)
         
