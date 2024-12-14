@@ -233,25 +233,24 @@ class TimeSeriesCompressor:
         # print(f"Sparse codes shape: {self.sparse_codes.shape}")  # Expected: (num_segments, n_atoms)
 
         # print("Compressing data...")
-        print(self.compress2())
+        print(self.compress())
         # print("Compressed data shape:", self.compressed_data.shape)
-
         
         # # print("Decompressing data...")
-        # decompressed_segments = self.decompress()
+        decompressed_segments = self.decompress()
         # # print("Decompression complete.")
 
         # # print("Reassembling segments...")
-        # num_series, num_points = self.time_series_data.shape
-        # decompressed_data = self.reassemble_segments(decompressed_segments, num_series, num_points)
+        num_series, num_points = self.time_series_data.shape
+        decompressed_data = self.reassemble_segments(decompressed_segments, num_series, num_points)
         
         # # print("Evaluating compression...")
-        # mse, compression_ratio = self.evaluate_compression(self.time_series_data, decompressed_segments)
+        mse, compression_ratio = self.evaluate_compression(self.time_series_data, decompressed_segments)
         
         # print(f"Compression Ratio: {compression_ratio}")
         # print(f"Mean Squared Error: {mse}")
         
         # # print("Storing results...")
-        # self.store_results(mse, compression_ratio)
+        self.store_results(mse, compression_ratio)
         
-        # return mse, compression_ratio
+        return mse, compression_ratio

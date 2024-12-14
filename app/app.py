@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import dotenv
 import os
 from functools import wraps
+from decompression import TimeSeriesCompressor
 dotenv.load_dotenv()
 
 SECRET_KEY = os.getenv('SECRET_KEY')
@@ -56,6 +57,24 @@ socketio = SocketIO(app,
 def index():
     return "Flask server is running."
 
+@app.route('/data', methods=['POST'])
+def get_data():
+    data = request.json
+    start = data.get('date')
+    de = TimeSeriesCompressor(date=start)
+    result, date_time = de.run_compression()
+    print(result[1])
+    
+    temp = result[0].tolist()
+    humid = result[1].tolist()
+    
+    return jsonify({
+        'status': 'success',
+        'temp': temp,
+        'humid': humid,
+        'datetime': date_time
+    })
+    
 @app.route('/login', methods=['POST'])
 def login():
     data = request.json

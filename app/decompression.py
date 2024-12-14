@@ -30,7 +30,6 @@ class TimeSeriesCompressor:
         self.sparse_codes_shape = None
         self.compressed_shape = None
 
-
     def load_data(self):
         try: 
             conn = mysql.connector.connect(
@@ -149,7 +148,7 @@ class TimeSeriesCompressor:
         result = self.inverse_transform_data(decompressed_data)
         print(result)
         
-        return result
+        return result, self.date_time
         
 
 if __name__ == "__main__":

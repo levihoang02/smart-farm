@@ -1,59 +1,7 @@
-// Initialize Charts
-const temperatureCtx = document.getElementById('temperatureChart').getContext('2d');
-const humidityCtx = document.getElementById('humidityChart').getContext('2d');
 
-// Temperature Line Chart
-const temperatureChart = new Chart(temperatureCtx, {
-    type: 'line',
-    data: {
-        labels: [],
-        datasets: [{
-            label: 'Temperature °C',
-            data: [],
-            borderColor: 'rgb(255, 99, 132)',
-            tension: 0.1,
-            fill: false
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            y: {
-                beginAtZero: false
-            }
-        }
-    }
-});
-
-// Metrics Gauge Chart
-const humidityChart = new Chart(humidityCtx, {
-    type: 'line',
-    data: {
-        labels: [],
-        datasets: [{
-            label: 'Humidity QV2M',
-            data: [],
-            borderColor: 'rgb(54, 162, 235)',
-            tension: 0.1,
-            fill: false
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-            y: {
-                beginAtZero: false
-            }
-        }
-    }
-});
-
-// Keep track of time series data
-const maxDataPoints = 20;
-const temperatureData = [];
-const humidityData = [];
+const TEMP_ALERT_THRESHOLD = 20;
+const HUMIDITY_ALERT_THRESHOLD = 30;
+let audio = null;
 
 document.addEventListener('DOMContentLoaded', function() {
     const token = localStorage.getItem('token');
@@ -63,6 +11,22 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+const playAlertSound = () => {
+    if (audio) {
+        audio.pause(); // Stop any currently playing sound
+        audio.currentTime = 0; // Reset playback to the start
+    }
+    audio = new Audio('../utils/alert.wav'); // Replace with your audio file
+    audio.play();
+};
+
+const stopAlertSound = () => {
+    if (audio) {
+        audio.pause(); // Stop the sound
+        audio.currentTime = 0; // Reset to the start
+    }
+};
+
 const token = localStorage.getItem('token');
 const socket = io("http://localhost:5000", {
     withCredentials: true,
@@ -70,7 +34,6 @@ const socket = io("http://localhost:5000", {
         Authorization: `Bearer ${token}`
     }
 });
-
 const statusElement = document.getElementById('connection-status');
 
 socket.on("connect", () => {
@@ -83,8 +46,10 @@ function checkThreshold(elementId, value, threshold) {
     const card = document.getElementById(`${elementId}-card`);
     if (value >= threshold) {
         card.classList.add('alert-threshold');
+        playAlertSound();
     } else {
         card.classList.remove('alert-threshold');
+        stopAlertSound();
     }
 }
 
@@ -99,38 +64,12 @@ socket.on("sensor_data", (res) => {
         if (tempElement && humidityElement) {
             const temp = res.data["Temperature"];
             const humidity = res.data["Humidity"];
-            tempElement.textContent = temp.toFixed(1);
-            humidityElement.textContent = humidity.toFixed(1);
             checkThreshold('temperature', temp, TEMP_ALERT_THRESHOLD);
             checkThreshold('humidity', humidity, HUMIDITY_ALERT_THRESHOLD);
-
-            // Update temperature chart
-            const timestamp = new Date().toLocaleTimeString();
-            temperatureData.push({ time: timestamp, temp: temp });
-            
-            // Keep only last maxDataPoints
-            if (temperatureData.length > maxDataPoints) {
-                temperatureData.shift();
             }
-
-            temperatureChart.data.labels = temperatureData.map(data => data.time);
-            temperatureChart.data.datasets[0].data = temperatureData.map(data => data.temp);
-            temperatureChart.update();
-
-            // Update humidity chart
-            humidityData.push({ time: timestamp, humidity: humidity });
-            if (humidityData.length > maxDataPoints) {
-                humidityData.shift();
-            }
-            humidityChart.data.labels = humidityData.map(data => data.time);
-            humidityChart.data.datasets[0].data = humidityData.map(data => data.humidity);
-            humidityChart.update();
-        }
-
-    } catch(err) {
-        console.error(err);
-    }
-});
+        } catch(err) {
+            console.error(err);
+        }});
 
 function checkThresholds(temperature, humidity) {
     if (temperature > TEMP_ALERT_THRESHOLD) {
@@ -164,10 +103,6 @@ const showToast = (message) => {
     toastContainer.insertBefore(toast, toastContainer.firstChild);
     const toastBootstrap = new bootstrap.Toast(toast);
     toastBootstrap.show();
-
-    toast.addEventListener('hidden.bs.toast', () => {
-        toast.remove();
-    });
 };
 
 socket.on("disconnect", () => {
@@ -191,3 +126,75 @@ async function logout() {
         console.error('Logout error:', error);
     }
 }
+
+function downloadCSV(date, temp, humid) {
+    // Create CSV header
+    let csvContent = "TIME,T2M,QV2M\n";
+    
+    // Create timestamps with 1-hour gaps
+    const startDate = new Date(date); // Assuming 'date' is your start date
+    const timestamps = [];
+    
+    // Generate timestamps for each data point
+    for (let i = 0; i < temp.length; i++) {
+        const currentDate = new Date(startDate);
+        currentDate.setHours(startDate.getHours() + i); // Add i hours to start date
+        timestamps.push(currentDate);
+    }
+    
+    // Combine timestamps with temperature and humidity data
+    for (let i = 0; i < temp.length; i++) {
+        const date = timestamps[i];
+        const row = [
+            `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:00`,  // YYYY-MM-DD HH:00
+            temp[i],    // T2M
+            humid[i]    // QV2M
+        ].join(',');
+        csvContent += row + "\n";
+    }
+
+    // Create blob and download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    
+    // Create object URL
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `sensor_data_${new Date().toISOString()}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+async function download(date) {
+    try {
+        const response = await fetch('http://localhost:5000/data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include', 
+            body: JSON.stringify({ date })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Request failed');
+        }
+
+        const data = await response.json();
+        downloadCSV(date, data.temp, data.humid);
+    } catch (error) {
+        console.error('Download error:', error);
+    }
+};
+
+document.getElementById('download-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const date = document.getElementById('date').value;
+
+    await download(date);
+});
