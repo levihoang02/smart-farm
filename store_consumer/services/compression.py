@@ -38,12 +38,11 @@ class TimeSeriesCompressor:
 
         self.time_series_data = np.vstack((temperature_data, humidity_data))
 
-    def preprocess_data(self):
-        scaler = StandardScaler()
-        self.scaler = scaler
-        detrended_data = np.apply_along_axis(detrend, axis=1, arr=self.time_series_data)
-        self.trends = self.time_series_data - detrended_data
-        self.time_series_data = scaler.fit_transform(detrended_data.T).T gaussian_filter(x, sigma=2), axis=1, arr=self.time_series_data)
+    def preprocess_data(self):        
+        self.scaler = StandardScaler()
+        self.time_series_data = self.scaler.fit_transform(self.time_series_data.T).T
+        self.time_series_data = np.apply_along_axis(detrend, axis=1, arr=self.time_series_data)
+        self.time_series_data = np.apply_along_axis(lambda x: gaussian_filter(x, sigma=2), axis=1, arr=self.time_series_data)
 
     def segment_data(self, overlap=5):
         segments = []
@@ -236,6 +235,7 @@ class TimeSeriesCompressor:
         # print("Compressing data...")
         print(self.compress())
         # print("Compressed data shape:", self.compressed_data.shape)
+
         
         # # print("Decompressing data...")
         decompressed_segments = self.decompress()
@@ -248,8 +248,8 @@ class TimeSeriesCompressor:
         # # print("Evaluating compression...")
         mse, compression_ratio = self.evaluate_compression(self.time_series_data, decompressed_segments)
         
-        # print(f"Compression Ratio: {compression_ratio}")
-        # print(f"Mean Squared Error: {mse}")
+        print(f"Compression Ratio: {compression_ratio}")
+        print(f"Mean Squared Error: {mse}")
         
         # # print("Storing results...")
         self.store_results(mse, compression_ratio)

@@ -35,8 +35,7 @@ class StoreConsumer:
                         continue
                     else:
                         
-                        continue
-                     
+                        continue       
         except Exception as e:
             print(f"Error processing message: {e}")
             raise e
@@ -45,4 +44,6 @@ class StoreConsumer:
         print("Stream consumer stopped")
             
 if __name__ == "__main__":
-    compressor.run_compression()
+    mse, ratio = compressor.run_compression()
+    print("MSE: ", mse)
+    print("Ratio: ", ratio)
